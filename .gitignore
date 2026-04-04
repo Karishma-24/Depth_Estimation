@@ -1,4 +1,27 @@
-dataset/
-.ipynb_checkpoints/
 models/
 monodepth2/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Dataset (too large for git)
+dataset/
+*.mat
+*.h5
+
+# Model checkpoints (too large)
+checkpoints/
+*.pth
+*.pt
+
+# Logs
+logs/
+
+# OS files
+.DS_Store        # Mac
+Thumbs.db        # Windows
