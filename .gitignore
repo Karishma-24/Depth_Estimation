@@ -23,5 +23,5 @@ checkpoints/
 logs/
 
 # OS files
-.DS_Store        # Mac
+.DS_Store/        # Mac
 Thumbs.db        # Windows
