@@ -1,7 +1,7 @@
 models/
 monodepth2/
-dataset.zip/
-depth_frontend.zip/
+dataset.zip
+depth_frontend.zip
 training_outputs/
 
 # Python
