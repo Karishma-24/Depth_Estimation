@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DepthAR — Monocular Depth Estimation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #13131a; --card: #1c1c28;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.14);
+    --accent: #7c6cfc; --accent2: #fc6c9a;
+    --text: #f0f0fa; --muted: #7a7a96;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  header { padding: 2rem 3rem 0; display: flex; align-items: center; gap: 1rem; }
+  .logo-mark {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 13px; color: #fff;
+  }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.35rem; }
+  .logo-text span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .badge { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--border2); padding: 4px 10px; border-radius: 20px; }
+
+  .hero { text-align: center; padding: 3rem 2rem 2rem; }
+  .hero h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 1rem; }
+  .hero h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { color: var(--muted); font-size: 1rem; font-weight: 300; max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+  .tabs-wrapper { display: flex; justify-content: center; gap: 8px; margin-bottom: 2rem; }
+  .tab-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 12px; padding: 10px 22px; border-radius: 30px;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+  }
+  .tab-btn:hover { border-color: var(--border2); color: var(--text); }
+  .tab-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color: #fff; }
+
+  .panel { display: none; max-width: 920px; margin: 0 auto 4rem; padding: 0 2rem; }
+  .panel.active { display: block; }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border2); border-radius: 20px; padding: 3rem 2rem;
+    text-align: center; cursor: pointer; transition: all 0.25s; background: var(--surface); position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(124,108,252,0.05); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+  .upload-zone h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.05rem; margin-bottom: 0.4rem; }
+  .upload-zone p { color: var(--muted); font-size: 0.85rem; }
+
+  .btn-run {
+    width: 100%; margin-top: 1.25rem; padding: 15px; border-radius: 14px; border: none;
+    background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #fff;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem;
+    cursor: pointer; transition: opacity 0.2s, transform 0.15s; display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-run:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-run:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
+
+  .loader { display: none; align-items: center; gap: 12px; margin-top: 1.25rem; padding: 14px 18px; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); }
+  .loader.visible { display: flex; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  .progress-bar-wrap { height: 3px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; display: none; }
+  .progress-bar-wrap.visible { display: block; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.4s; width: 0%; }
+
+  .results { margin-top: 2rem; display: none; }
+  .results.visible { display: block; }
+  .results-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 1rem; }
+
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .results-grid { grid-template-columns: 1fr; } }
+
+  .result-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; }
+  .result-card-label { padding: 12px 16px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .dot.depth { background: var(--accent2); }
+  .result-card img { width: 100%; display: block; max-height: 320px; object-fit: cover; }
+
+  .video-success {
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 3rem 2rem; text-align: center;
+  }
+  .video-success .check { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+  .video-success h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .video-success p { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+
+  .btn-download {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 1rem;
+    padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 12px; cursor: pointer; text-decoration: none; transition: all 0.2s;
+  }
+  .btn-download:hover { background: var(--surface); border-color: var(--accent); }
+
+  .btn-download-large {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 1.5rem;
+    padding: 14px 28px; border-radius: 12px; border: none;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #fff; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.95rem; cursor: pointer; text-decoration: none; transition: opacity 0.2s;
+  }
+  .btn-download-large:hover { opacity: 0.88; }
+
+  .webcam-container { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 0; }
+  @media (max-width: 600px) { .webcam-container { grid-template-columns: 1fr; } }
+  .webcam-card video, .webcam-card canvas { width: 100%; display: block; max-height: 300px; object-fit: cover; background: #000; }
+
+  .webcam-controls { display: flex; gap: 10px; margin-bottom: 1.25rem; }
+  .btn-secondary {
+    flex: 1; padding: 13px; border-radius: 12px; border: 1px solid var(--border2);
+    background: var(--surface); color: var(--text); font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-secondary:hover { background: var(--card); border-color: var(--accent); }
+  .btn-secondary.danger { border-color: rgba(252,108,154,0.4); color: var(--accent2); }
+
+  .fps-badge {
+    position: absolute; top: 44px; right: 10px;
+    background: rgba(0,0,0,0.65); color: #fff;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    padding: 3px 8px; border-radius: 6px; z-index: 5;
+  }
+
+  .status-strip {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    background: var(--card); border: 1px solid var(--border2);
+    border-radius: 30px; padding: 10px 20px;
+    font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted);
+    z-index: 100; display: none; align-items: center; gap: 10px; white-space: nowrap;
+  }
+  .status-strip.visible { display: flex; }
+  .status-strip.error { color: #fc6c6c; border-color: rgba(252,108,108,0.3); }
+  .status-strip.ok { color: #6cfcb0; border-color: rgba(108,252,176,0.3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">D↓</div>
+  <div class="logo-text">Depth<span>AR</span></div>
+  <div class="badge">V8 · ResNet50 U-Net · NYU Depth V2</div>
+</header>
+
+<div class="hero">
+  <h1>See the World<br/>in <em>Depth</em></h1>
+  <p>Monocular depth estimation from a single RGB image — powered by a custom ResNet50 U-Net trained on NYU Depth V2.</p>
+</div>
+
+<div class="tabs-wrapper">
+  <button class="tab-btn active" data-tab="image" onclick="switchTab('image')">🖼 Image</button>
+  <button class="tab-btn" data-tab="video" onclick="switchTab('video')">🎬 Video</button>
+  <button class="tab-btn" data-tab="webcam" onclick="switchTab('webcam')">📷 Live Camera</button>
+</div>
+
+<!-- IMAGE PANEL -->
+<div class="panel active" id="panel-image">
+  <div class="upload-zone" id="img-zone">
+    <input type="file" accept="image/*" id="img-input" onchange="handleImg(event)" />
+    <span class="upload-icon">🖼</span>
+    <h3>Drop an image here</h3>
+    <p>JPG · PNG · WEBP — or click to browse</p>
+  </div>
+  <button class="btn-run" id="img-btn" onclick="runImage()" disabled>⚡ Estimate Depth</button>
+  <div class="loader" id="img-loader"><div class="spinner"></div><span class="loader-text">Running inference…</span></div>
+  <div class="results" id="img-results">
+    <div class="results-label">Results</div>
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="result-card-label"><span class="dot"></span> Original RGB</div>
+        <img id="img-orig" src="" alt="original" />
+      </div>
+      <div class="result-card">
+        <div class="result-card-label"><span class="dot depth"></span> Depth Map (Plasma)</div>
+        <img id="img-depth" src="" alt="depth" />
+      </div>
+    </div>
+    <a class="btn-download" id="img-dl" href="#" download="depth_map.png">⬇ Download Depth Map</a>
+  </div>
+</div>
+
+<!-- VIDEO PANEL -->
+<div class="panel" id="panel-video">
+  <div class="upload-zone" id="vid-zone">
+    <input type="file" accept="video/*" id="vid-input" onchange="handleVid(event)" />
+    <span class="upload-icon">🎬</span>
+    <h3>Drop a video here</h3>
+    <p>MP4 · MOV — processed frame-by-frame, capped at 50 frames</p>
+  </div>
+  <button class="btn-run" id="vid-btn" onclick="runVideo()" disabled>⚡ Process Video</button>
+  <div class="loader" id="vid-loader"><div class="spinner"></div><span class="loader-text" id="vid-loader-text">Processing…</span></div>
+  <div class="progress-bar-wrap" id="vid-prog-wrap"><div class="progress-bar-fill" id="vid-prog-fill"></div></div>
+  <div class="results" id="vid-results">
+    <div class="results-label">Video Processed</div>
+    <div class="video-success" id="vid-success-box">
+        <span class="check">✅</span>
+        <h3>Depth video ready!</h3>
+        <p id="vid-info-text">Processed successfully.</p>
+        <video id="vid-out" controls playsinline style="width:100%; border-radius:12px; margin-top:1.5rem; display:block; background:#000;"></video>
+        <a class="btn-download-large" id="vid-dl" href="#">⬇ Download Depth Video (.mp4)</a>
+    </div>
+  </div>
+</div>
+
+<!-- WEBCAM PANEL -->
+<div class="panel" id="panel-webcam">
+  <div class="webcam-controls">
+    <button class="btn-secondary" onclick="startCam()">▶ Start Camera</button>
+    <button class="btn-secondary danger" onclick="stopCam()">■ Stop Camera</button>
+  </div>
+  <div class="webcam-container">
+    <div class="result-card" style="position:relative;">
+      <div class="result-card-label"><span class="dot"></span> Live Camera Feed</div>
+      <video id="cam-video" autoplay playsinline muted class="webcam-card"></video>
+    </div>
+    <div class="result-card" style="position:relative;">
+      <div class="result-card-label"><span class="dot depth"></span> Live Depth Map</div>
+      <div class="fps-badge" id="fps-badge">-- fps</div>
+      <canvas id="cam-canvas" class="webcam-card"></canvas>
+    </div>
+  </div>
+  <p style="color:var(--muted); font-size:0.8rem; margin-top:1rem; font-family:'DM Mono',monospace;">
+    Frames sent to local Flask server every 200ms. Latency depends on your hardware.
+  </p>
+</div>
+
+<div class="status-strip" id="status"></div>
+
+<script>
+const API = 'http://localhost:8080';
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+  if (tab !== 'webcam') stopCam();
+}
+
+function showStatus(msg, type='', ms=3000) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status-strip visible' + (type ? ' '+type : '');
+  if (ms) setTimeout(() => el.classList.remove('visible'), ms);
+}
+
+// ── Image ─────────────────────────────────────────────
+let imgFile = null;
+function handleImg(e) {
+  imgFile = e.target.files[0];
+  if (!imgFile) return;
+  document.getElementById('img-zone').querySelector('h3').textContent = imgFile.name;
+  document.getElementById('img-zone').querySelector('p').textContent = (imgFile.size/1024/1024).toFixed(2) + ' MB';
+  document.getElementById('img-btn').disabled = false;
+}
+const imgZone = document.getElementById('img-zone');
+imgZone.addEventListener('dragover',  e => { e.preventDefault(); imgZone.classList.add('dragover'); });
+imgZone.addEventListener('dragleave', () => imgZone.classList.remove('dragover'));
+imgZone.addEventListener('drop', e => {
+  e.preventDefault(); imgZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f?.type.startsWith('image/')) { imgFile = f; imgZone.querySelector('h3').textContent = f.name; document.getElementById('img-btn').disabled = false; }
+});
+
+async function runImage() {
+  if (!imgFile) return;
+  document.getElementById('img-btn').disabled = true;
+  document.getElementById('img-loader').classList.add('visible');
+  document.getElementById('img-results').classList.remove('visible');
+  try {
+    const fd = new FormData(); fd.append('file', imgFile);
+    const r  = await fetch(API + '/api/image', { method:'POST', body:fd });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    const depSrc = 'data:image/png;base64,' + d.depth;
+    document.getElementById('img-orig').src  = 'data:image/png;base64,' + d.original;
+    document.getElementById('img-depth').src = depSrc;
+    document.getElementById('img-dl').href   = depSrc;
+    document.getElementById('img-results').classList.add('visible');
+    showStatus('Done ✓', 'ok');
+  } catch(err) { showStatus('Error: ' + err.message, 'error', 6000); }
+  finally { document.getElementById('img-btn').disabled = false; document.getElementById('img-loader').classList.remove('visible'); }
+}
+
+// ── Video ─────────────────────────────────────────────
+let vidFile = null;
+function handleVid(e) {
+  vidFile = e.target.files[0];
+  if (!vidFile) return;
+  document.getElementById('vid-zone').querySelector('h3').textContent = vidFile.name;
+  document.getElementById('vid-zone').querySelector('p').textContent  = (vidFile.size/1024/1024).toFixed(2) + ' MB';
+  document.getElementById('vid-btn').disabled = false;
+}
+const vidZone = document.getElementById('vid-zone');
+vidZone.addEventListener('dragover',  e => { e.preventDefault(); vidZone.classList.add('dragover'); });
+vidZone.addEventListener('dragleave', () => vidZone.classList.remove('dragover'));
+vidZone.addEventListener('drop', e => {
+  e.preventDefault(); vidZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f?.type.startsWith('video/')) { vidFile = f; vidZone.querySelector('h3').textContent = f.name; document.getElementById('vid-btn').disabled = false; }
+});
+
+async function runVideo() {
+  if (!vidFile) return;
+  const btn   = document.getElementById('vid-btn');
+  const ldr   = document.getElementById('vid-loader');
+  const ldrT  = document.getElementById('vid-loader-text');
+  const progW = document.getElementById('vid-prog-wrap');
+  const progF = document.getElementById('vid-prog-fill');
+  btn.disabled = true; ldr.classList.add('visible');
+  progW.classList.add('visible'); progF.style.width = '10%';
+  document.getElementById('vid-results').classList.remove('visible');
+  try {
+    ldrT.textContent = 'Uploading video…';
+    const fd = new FormData(); fd.append('file', vidFile);
+    ldrT.textContent = 'Processing frames — this takes a few minutes on CPU…';
+    progF.style.width = '40%';
+
+    const r = await fetch(API + '/api/video', { method: 'POST', body: fd });
+    progF.style.width = '90%';
+    if (!r.ok) throw new Error(await r.text());
+
+    // Get video as blob — works 100% regardless of static serving
+    const blob = await r.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    progF.style.width = '100%';
+
+    const vidEl = document.getElementById('vid-out');
+    vidEl.src = blobUrl;
+    vidEl.load();
+
+    // Download button uses same blob
+    const dlBtn = document.getElementById('vid-dl');
+    dlBtn.href     = blobUrl;
+    dlBtn.download = 'depth_video.mp4';
+
+    // We don't get frames/fps from blob response, so show generic message
+    document.getElementById('vid-info-text').textContent = 'Depth video processed successfully.';
+    document.getElementById('vid-results').classList.add('visible');
+    showStatus('Video ready ✓', 'ok');
+  } catch(err) { showStatus('Error: ' + err.message, 'error', 6000); }
+  finally { btn.disabled = false; ldr.classList.remove('visible'); setTimeout(() => progW.classList.remove('visible'), 1000); }
+}
+
+// ── Webcam ────────────────────────────────────────────
+let stream = null, interval = null, busy = false, frameCount = 0, lastT = performance.now();
+
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const vid = document.getElementById('cam-video');
+    vid.srcObject = stream; await vid.play();
+    interval = setInterval(sendFrame, 200);
+    showStatus('Camera active', 'ok');
+  } catch(e) { showStatus('Camera error: ' + e.message, 'error', 6000); }
+}
+
+function stopCam() {
+  stream?.getTracks().forEach(t => t.stop()); stream = null;
+  clearInterval(interval); interval = null;
+  document.getElementById('cam-video').srcObject = null;
+}
+
+async function sendFrame() {
+  if (busy) return; busy = true;
+  const vid = document.getElementById('cam-video');
+  const cnv = document.getElementById('cam-canvas');
+  if (!vid.videoWidth) { busy = false; return; }
+  const tmp = document.createElement('canvas');
+  tmp.width = vid.videoWidth; tmp.height = vid.videoHeight;
+  tmp.getContext('2d').drawImage(vid, 0, 0);
+  try {
+    const r = await fetch(API + '/api/frame', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ frame: tmp.toDataURL('image/jpeg', 0.7) })
+    });
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    const img = new Image();
+    img.onload = () => {
+      cnv.width = img.width; cnv.height = img.height;
+      cnv.getContext('2d').drawImage(img, 0, 0);
+      frameCount++;
+      const now = performance.now(), elapsed = now - lastT;
+      if (elapsed > 1000) {
+        document.getElementById('fps-badge').textContent = (frameCount/elapsed*1000).toFixed(1) + ' fps';
+        frameCount = 0; lastT = now;
+      }
+    };
+    img.src = d.depth;
+  } catch(_) {}
+  busy = false;
+}
+</script>
+</body>
+</html>
