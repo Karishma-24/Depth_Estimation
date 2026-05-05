@@ -1,5 +1,8 @@
 models/
 monodepth2/
+dataset.zip/
+depth_frontend.zip/
+training_outputs/
 
 # Python
 __pycache__/
