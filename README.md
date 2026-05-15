@@ -93,7 +93,7 @@ conda activate depth_venv
 python app.py
 ```
 
-The app will be available at `http://localhost:5000`. Upload a video or image to get a depth map output.
+The app will be available at `http://localhost:8080`. Upload a video or image to get a depth map output.
 
 ---
 
