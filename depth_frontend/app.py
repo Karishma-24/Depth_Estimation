@@ -113,6 +113,38 @@ def predict(pil_img):
     _, buf    = cv2.imencode('.png', coloured)
     return buf.tobytes()
 
+"""
+def predict(pil_img):
+    PIL RGB image → plasma-colourised depth PNG bytes (same size as input).
+    inp = transform(pil_img).unsqueeze(0).to(DEVICE)
+    with torch.no_grad():
+        depth = model(inp).squeeze().cpu().numpy()   # [H, W]  0-1
+
+    # Auto-orient: check if center is closer (lower value) than border
+    # In most indoor scenes, the camera subject is central and near
+    H, W = depth.shape
+    cy, cx = H // 2, W // 2
+    margin_y, margin_x = H // 4, W // 4
+
+    center_mean = depth[cy - margin_y : cy + margin_y,
+                        cx - margin_x : cx + margin_x].mean()
+    border_mask = np.ones_like(depth, dtype=bool)
+    border_mask[cy - margin_y : cy + margin_y,
+                cx - margin_x : cx + margin_x] = False
+    border_mean = depth[border_mask].mean()
+
+    # If center depth > border depth, the model has it inverted — flip
+    if center_mean > border_mean:
+        depth_u8 = (255 - depth * 255).astype(np.uint8)   # invert
+    else:
+        depth_u8 = (depth * 255).astype(np.uint8)          # keep
+
+    coloured = cv2.applyColorMap(depth_u8, cv2.COLORMAP_PLASMA)
+    coloured = cv2.resize(coloured, pil_img.size)
+    _, buf   = cv2.imencode('.png', coloured)
+    return buf.tobytes()
+"""
+
 def to_b64(data: bytes) -> str:
     return base64.b64encode(data).decode()
 
