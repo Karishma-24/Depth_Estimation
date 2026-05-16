@@ -3,6 +3,7 @@ monodepth2/
 dataset.zip
 depth_frontend.zip
 training_outputs/
+do_not_put_git/
 
 # Python
 __pycache__/
