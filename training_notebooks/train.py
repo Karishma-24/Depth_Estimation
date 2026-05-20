@@ -41,7 +41,7 @@ RESULTS_PATH = "./results/all_results_v8.pkl"
 
 IMG_SIZE       = 256
 BATCH_SIZE     = 16
-NUM_EPOCHS     = 30
+NUM_EPOCHS     = 50
 ENCODER_LR     = 1e-5
 DECODER_LR     = 1e-4
 WEIGHT_DECAY   = 1e-5
